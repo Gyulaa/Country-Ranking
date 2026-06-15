@@ -324,6 +324,38 @@ fig_scatter.update_layout(
     height=490, margin=dict(t=20, b=50, l=60, r=20),
 )
 
+# ── TÁBLÁZAT SOROK ───────────────────────────────────────────────────────────
+def _score_color(v):
+    if v >= 8:   return '#3fb950'
+    if v >= 6.5: return '#7ee787'
+    if v >= 5:   return '#e3b341'
+    if v >= 3.5: return '#f0883e'
+    return '#f85149'
+
+def _score_cell(v):
+    c = _score_color(v)
+    return f'<td style="color:{c};font-weight:600;text-align:right" data-val="{v:.4f}">{v:.2f}</td>'
+
+table_rows_html = ""
+for _rank, (_iso, _row) in enumerate(df.sort_values('FINAL_SCORE_1_10', ascending=False).iterrows(), 1):
+    _name   = COUNTRY_NAMES.get(_iso, _iso)
+    _region = REGIONS.get(_iso, 'Egyéb')
+    _rc     = REGION_COLORS.get(_region, '#555')
+    table_rows_html += (
+        f'<tr>'
+        f'<td class="tc-rank" data-val="{_rank}">{_rank}</td>'
+        f'<td class="tc-country"><span class="iso-tag">{_iso}</span>{_name}</td>'
+        f'<td class="tc-region" data-val="{_region}" style="color:{_rc}">{_region}</td>'
+        + _score_cell(_row['FINAL_SCORE_1_10'])
+        + _score_cell(_row['Score_OSCI'])
+        + _score_cell(_row['Score_HardPower'])
+        + _score_cell(_row['Dim_Energy'])
+        + _score_cell(_row['Dim_Openness'])
+        + _score_cell(_row['Dim_Cohesion'])
+        + _score_cell(_row['Dim_Demography'])
+        + '</tr>\n'
+    )
+
 # ── HTML ÖSSZEÁLLÍTÁS ─────────────────────────────────────────────────────────
 cfg = {'responsive': True, 'displayModeBar': True, 'displaylogo': False,
        'modeBarButtonsToRemove': ['select2d', 'lasso2d']}
@@ -422,6 +454,55 @@ html = f"""<!DOCTYPE html>
       .formula-plus {{ align-self: center; }}
       .meth-block p, .meth-block li {{ font-size: 12px; }}
       .formula-box {{ font-size: 13px; padding: 10px; }}
+    }}
+
+    /* ── Teljes Rangsor Táblázat ── */
+    .table-controls {{
+      display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 10px;
+    }}
+    .table-search {{
+      background: #21262d; color: #e6edf3;
+      border: 1px solid #58a6ff; border-radius: 6px;
+      padding: 6px 12px; font-size: 13px; outline: none;
+      flex: 1; min-width: 180px; max-width: 320px;
+    }}
+    .table-search::placeholder {{ color: #6e7681; }}
+    .table-search:focus {{ border-color: #79c0ff; }}
+    .table-wrap {{
+      overflow-x: auto; overflow-y: auto; max-height: 540px;
+      border: 1px solid #30363d; border-radius: 8px;
+    }}
+    table.ranking-table {{
+      width: 100%; border-collapse: collapse; font-size: 13px; min-width: 680px;
+    }}
+    .ranking-table thead th {{
+      background: #1c2128; color: #8b949e; font-size: 10.5px;
+      text-transform: uppercase; letter-spacing: 0.6px; font-weight: 600;
+      padding: 9px 10px; text-align: left; white-space: nowrap;
+      cursor: pointer; user-select: none;
+      border-bottom: 2px solid #30363d;
+      position: sticky; top: 0; z-index: 2;
+    }}
+    .ranking-table thead th:hover {{ color: #e6edf3; background: #30363d; }}
+    .ranking-table thead th.sort-asc::after  {{ content: ' ↑'; color: #58a6ff; }}
+    .ranking-table thead th.sort-desc::after {{ content: ' ↓'; color: #58a6ff; }}
+    .ranking-table thead th:first-child {{ text-align: center; }}
+    .ranking-table tbody tr {{ border-bottom: 1px solid #21262d; transition: background 0.1s; }}
+    .ranking-table tbody tr:hover {{ background: #21262d; }}
+    .ranking-table td {{ padding: 7px 10px; vertical-align: middle; }}
+    .tc-rank {{ color: #6e7681; font-size: 12px; text-align: center; width: 36px; }}
+    .tc-country {{ min-width: 160px; color: #e6edf3; }}
+    .tc-region {{ font-size: 11px; font-weight: 600; white-space: nowrap; }}
+    .iso-tag {{
+      display: inline-block; background: #21262d; border: 1px solid #30363d;
+      border-radius: 4px; padding: 1px 5px; font-size: 10px;
+      color: #8b949e; margin-right: 6px; font-family: monospace; letter-spacing: 0.3px;
+    }}
+    @media (max-width: 768px) {{
+      .table-search {{ max-width: 100%; }}
+      .ranking-table {{ font-size: 12px; }}
+      .ranking-table thead th {{ font-size: 9.5px; padding: 7px 7px; }}
+      .ranking-table td {{ padding: 6px 7px; }}
     }}
 
     /* ── Módszertan szekció ── */
@@ -535,6 +616,35 @@ html = f"""<!DOCTYPE html>
   </div>
 </div>
 
+<!-- Teljes Rangsor Táblázat -->
+<div class="card" style="margin-top: 16px;">
+  <div class="card-title">Teljes Rangsor – Mind a {n_countries} Ország</div>
+  <div class="table-controls">
+    <input type="text" id="table-search" class="table-search" placeholder="Keresés ország neve vagy ISO kód alapján...">
+    <span style="color:#6e7681;font-size:11px;">{n_countries} ország &nbsp;·&nbsp; kattints az oszlopfejlécre a rendezéshez</span>
+  </div>
+  <div class="table-wrap">
+    <table class="ranking-table" id="ranking-table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Ország</th>
+          <th>Régió</th>
+          <th>Végső Pont</th>
+          <th>OSCI</th>
+          <th>Hard Power</th>
+          <th>Energia</th>
+          <th>Nyitottság</th>
+          <th>Kohézió</th>
+          <th>Demográfia</th>
+        </tr>
+      </thead>
+      <tbody>
+{table_rows_html}      </tbody>
+    </table>
+  </div>
+</div>
+
 <!-- Módszertan szekció -->
 <div class="card meth-section" style="margin-top: 16px;" id="meth-card">
   <div class="meth-toggle" onclick="document.getElementById('meth-card').classList.toggle('open')">
@@ -619,6 +729,52 @@ html = f"""<!DOCTYPE html>
 
 <script>
 __JS_DATA__
+
+// ── Táblázat: rendezés és keresés ───────────────────────────────────────────
+(function() {{
+  var table = document.getElementById('ranking-table');
+  if (!table) return;
+  var tbody  = table.querySelector('tbody');
+  var headers = Array.from(table.querySelectorAll('thead th'));
+  var sortState = {{ col: 0, dir: 1 }};
+
+  function getCellVal(row, idx) {{
+    var cell = row.cells[idx];
+    if (!cell) return '';
+    var v = cell.getAttribute('data-val');
+    if (v !== null) {{ var n = parseFloat(v); return isNaN(n) ? v : n; }}
+    return cell.textContent.trim().toLowerCase();
+  }}
+
+  function doSort(colIdx) {{
+    if (sortState.col === colIdx) {{ sortState.dir *= -1; }}
+    else {{ sortState.col = colIdx; sortState.dir = (colIdx <= 2) ? 1 : -1; }}
+    var rows = Array.from(tbody.querySelectorAll('tr'));
+    var d = sortState.dir;
+    rows.sort(function(a, b) {{
+      var va = getCellVal(a, colIdx), vb = getCellVal(b, colIdx);
+      if (typeof va === 'number') return d * (va - vb);
+      return d * String(va).localeCompare(String(vb));
+    }});
+    var frag = document.createDocumentFragment();
+    rows.forEach(function(r) {{ frag.appendChild(r); }});
+    tbody.appendChild(frag);
+    headers.forEach(function(h) {{ h.classList.remove('sort-asc','sort-desc'); }});
+    headers[colIdx].classList.add(sortState.dir === 1 ? 'sort-asc' : 'sort-desc');
+  }}
+
+  headers.forEach(function(th, i) {{
+    th.addEventListener('click', function() {{ doSort(i); }});
+  }});
+  headers[0].classList.add('sort-asc');
+
+  document.getElementById('table-search').addEventListener('input', function() {{
+    var q = this.value.toLowerCase();
+    tbody.querySelectorAll('tr').forEach(function(row) {{
+      row.style.display = row.textContent.toLowerCase().includes(q) ? '' : 'none';
+    }});
+  }});
+}})();
 
 // Mobilon átméretezi a grafikonokat
 var DESKTOP_HEIGHTS = {{ 'map-fig': 520, 'bar-fig': 520, 'radar-fig': 460, 'scatter-fig': 490 }};
