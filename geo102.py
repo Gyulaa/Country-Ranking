@@ -4,14 +4,24 @@ import numpy as np
 import time
 from datetime import datetime  # ÚJ: Időbélyeghez szükséges modul
 
-# --- 1. BEÁLLÍTÁSOK ÉS BŐVÍTETT ORSZÁGLISTA (85 Ország) ---
+# --- 1. BEÁLLÍTÁSOK ÉS BŐVÍTETT ORSZÁGLISTA (102 Ország) ---
 global_powers = [
-    'USA', 'CAN', 'GBR', 'FRA', 'DEU', 'ITA', 'ESP', 'NLD', 'BEL', 'CHE', 'SWE', 'DNK', 'NOR', 'FIN', 'IRL', 'PRT', 'AUT',
-    'RUS', 'UKR', 'POL', 'ROU', 'CZE', 'HUN', 'GRC', 'SRB', 'BGR', 'HRV', 'SVK', 'LTU',
-    'CHN', 'JPN', 'IND', 'KOR', 'AUS', 'NZL', 'IDN', 'VNM', 'PHL', 'MYS', 'SGP', 'THA', 'PAK', 'BGD', 'LKA', 'KAZ', 'UZB',
-    'ISR', 'SAU', 'TUR', 'ARE', 'IRN', 'EGY', 'MAR', 'DZA', 'QAT', 'KWT', 'OMN', 'JOR', 'IRQ',
-    'BRA', 'MEX', 'ARG', 'COL', 'CHL', 'PER', 'VEN', 'ECU', 'DOM', 'GTM',
-    'NGA', 'ZAF', 'KEN', 'ETH', 'GHA', 'AGO', 'CIV'
+    # Észak-Amerika és Nyugat-Európa (18)
+    'USA', 'CAN', 'GBR', 'FRA', 'DEU', 'ITA', 'ESP', 'NLD', 'BEL', 'CHE', 'SWE', 'DNK', 'NOR', 'FIN', 'IRL', 'PRT', 'AUT', 'ISL',
+    # Kelet-Európa, Baltikum és Oroszország (11)
+    'RUS', 'UKR', 'BLR', 'POL', 'ROU', 'CZE', 'HUN', 'SVK', 'LTU', 'LVA', 'EST',
+    # Balkán (7)
+    'GRC', 'SRB', 'BGR', 'HRV', 'SVN', 'BIH', 'ALB', 'MKD', 'MNE',
+    # Ázsia és Óceánia (19)
+    'CHN', 'JPN', 'IND', 'KOR', 'AUS', 'NZL', 'IDN', 'VNM', 'PHL', 'MYS', 'SGP', 'THA', 'PAK', 'BGD', 'LKA', 'MNG', 'NPL', 'KHM', 'MMR',
+    # Közép-Ázsia és Kaukázus (5)
+    'KAZ', 'UZB', 'AZE', 'GEO', 'ARM',
+    # Közel-Kelet és Észak-Afrika (14)
+    'ISR', 'SAU', 'TUR', 'ARE', 'IRN', 'EGY', 'MAR', 'DZA', 'QAT', 'KWT', 'OMN', 'JOR', 'IRQ', 'TUN',
+    # Latin-Amerika (15)
+    'BRA', 'MEX', 'ARG', 'COL', 'CHL', 'PER', 'VEN', 'ECU', 'DOM', 'GTM', 'URY', 'CRI', 'PAN', 'BOL', 'PRY',
+    # Szaharától délre fekvő Afrika (11)
+    'NGA', 'ZAF', 'KEN', 'ETH', 'GHA', 'AGO', 'CIV', 'RWA', 'TZA', 'CMR', 'UGA'
 ]
 
 indicators = {
@@ -157,12 +167,12 @@ final_columns = [
 ]
 df_final = df_results[final_columns].sort_values(by='FINAL_SCORE_1_10', ascending=False).round(2)
 
-# ÚJ: Aktuális dátum és idő lekérése (ÉvHónapNap_ÓraPerc formátumban)
+# Aktuális dátum és idő lekérése
 current_time = datetime.now().strftime("%Y%m%d_%H%M")
-output_filename = f"Geopolitical_Ranking_{current_time}.xlsx"
+output_filename = f"Geopolitical_Ranking_102Countries_{current_time}.xlsx"
 
 df_final.to_excel(output_filename)
 
-print(f"\nKész! A végső 65/35 súlyozás alkalmazva. Mátrix mentve: {output_filename}")
+print(f"\nKész! A végső 65/35 súlyozás alkalmazva a teljes 102 országos listára. Mátrix mentve: {output_filename}")
 print("\n--- TOP 15 ORSZÁG ---")
 print(df_final[['Score_OSCI', 'Score_HardPower', 'FINAL_SCORE_1_10']].head(15))

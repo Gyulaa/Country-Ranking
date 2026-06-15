@@ -105,6 +105,35 @@ n_countries = len(df)
 metric_list = list(METRICS.items())
 n = len(metric_list)
 
+# ── HISTORIKUS ADATOK ─────────────────────────────────────────────────────────
+HIST_FILE = "historical_scores_optimalized.xlsx"
+HIST_SCORE_COLS = ['FINAL_SCORE_1_10','Score_OSCI','Score_HardPower',
+                   'Dim_Energy','Dim_Openness','Dim_Cohesion','Dim_Demography']
+HIST_METRIC_LABELS = {
+    'FINAL_SCORE_1_10': 'Végső Geopolitikai Pontszám',
+    'Score_OSCI':       'OSCI (Soft Power)',
+    'Score_HardPower':  'Hard Power',
+    'Dim_Energy':       'Energia & Innováció',
+    'Dim_Openness':     'Nyitottság',
+    'Dim_Cohesion':     'Kohézió',
+    'Dim_Demography':   'Demográfia',
+}
+HIST_START, HIST_END = 2005, 2024
+
+hist_has_data = False
+hist_sheets   = {}
+
+if os.path.exists(HIST_FILE):
+    try:
+        for col in HIST_SCORE_COLS:
+            s = pd.read_excel(HIST_FILE, sheet_name=col, index_col=0)
+            s.columns = s.columns.astype(int)
+            hist_sheets[col] = s
+        hist_has_data = True
+        print(f"Historikus adatok betöltve: {HIST_FILE}")
+    except Exception as _he:
+        print(f"Historikus adatok nem tölthetők be ({_he}); futtasd a historical_geo_list.py-t")
+
 top5 = df.sort_values('FINAL_SCORE_1_10', ascending=False).head(5).index.tolist()
 RADAR_GROUPS = {
     'Top 5':       top5,
@@ -359,7 +388,7 @@ for _rank, (_iso, _row) in enumerate(df.sort_values('FINAL_SCORE_1_10', ascendin
     _region = REGIONS.get(_iso, 'Egyéb')
     _rc     = REGION_COLORS.get(_region, '#555')
     table_rows_html += (
-        f'<tr>'
+        f'<tr data-iso="{_iso}" onclick="hToggleRow(this)" title="Kattints a historikus charthoz adáshoz/eltávolításhoz">'
         f'<td class="tc-rank" data-val="{_rank}">{_rank}</td>'
         f'<td class="tc-country"><span class="iso-tag">{_iso}</span>{_name}</td>'
         f'<td class="tc-region" data-val="{_region}" style="color:{_rc}">{_region}</td>'
@@ -382,6 +411,109 @@ f_bar     = fig_bar.to_html(full_html=False, include_plotlyjs=False, div_id='bar
 f_radar   = fig_radar.to_html(full_html=False, include_plotlyjs=False, div_id='radar-fig', config=cfg)
 f_scatter = fig_scatter.to_html(full_html=False, include_plotlyjs=False, div_id='scatter-fig', config=cfg)
 
+# ── HISTORIKUS CHART ──────────────────────────────────────────────────────────
+f_hist          = ""
+hist_js_data    = "var HIST_HAS_DATA = false;"
+hist_ctrl_html  = ""
+
+if hist_has_data:
+    hist_years = list(range(HIST_START, HIST_END + 1))
+    _all_isos  = [iso for iso in COUNTRY_NAMES if iso in hist_sheets['FINAL_SCORE_1_10'].index]
+
+    _latest_yr = max(c for c in hist_sheets['FINAL_SCORE_1_10'].columns if c <= HIST_END)
+    _top10     = hist_sheets['FINAL_SCORE_1_10'][_latest_yr].sort_values(ascending=False).head(10).index.tolist()
+    _top10     = [c for c in _top10 if c in _all_isos]
+
+    _grp_def = {
+        'Top 10':       _top10,
+        'G7':           [c for c in ['USA','CAN','GBR','FRA','DEU','ITA','JPN']             if c in _all_isos],
+        'BRICS+':       [c for c in ['BRA','RUS','IND','CHN','ZAF','SAU','ARE','ETH','IRN','EGY'] if c in _all_isos],
+        'NATO':         [c for c in ['USA','GBR','FRA','DEU','ITA','ESP','POL','TUR','CAN','NLD'] if c in _all_isos],
+        'Kelet-Ázsia':  [c for c in ['CHN','JPN','KOR','IND','SGP','VNM','IDN','MYS','THA'] if c in _all_isos],
+        'Öböl-menti':   [c for c in ['SAU','ARE','QAT','KWT','OMN','IRQ','IRN']             if c in _all_isos],
+        'Kelet-Európa': [c for c in ['RUS','POL','HUN','CZE','ROU','UKR','BGR','SVK']       if c in _all_isos],
+        'Latin-Amerika':[c for c in ['BRA','MEX','ARG','COL','CHL','PER','VEN','URY','CRI'] if c in _all_isos],
+    }
+
+    _fig_h = go.Figure()
+    for _iso in _all_isos:
+        _nm  = COUNTRY_NAMES.get(_iso, _iso)
+        _col = REGION_COLORS.get(REGIONS.get(_iso, ''), '#888')
+        _ys  = [
+            float(round(hist_sheets['FINAL_SCORE_1_10'].loc[_iso, yr], 3))
+            if yr in hist_sheets['FINAL_SCORE_1_10'].columns
+            and pd.notna(hist_sheets['FINAL_SCORE_1_10'].loc[_iso, yr])
+            else None
+            for yr in hist_years
+        ]
+        _fig_h.add_trace(go.Scatter(
+            x=hist_years, y=_ys,
+            name=_nm, mode='lines+markers',
+            marker=dict(size=4, color=_col),
+            line=dict(color=_col, width=2),
+            visible=(_iso in _top10),
+            hovertemplate=f'<b>{_nm}</b><br>%{{x}}: %{{y:.2f}}<extra></extra>',
+        ))
+
+    _fig_h.update_layout(
+        height=480,
+        paper_bgcolor='#161b22', plot_bgcolor='#0d1117',
+        font=dict(color='#e6edf3', family='Segoe UI, Arial'),
+        xaxis=dict(title='Év', gridcolor='#21262d', zerolinecolor='#21262d',
+                   tickfont=dict(color='#8b949e'), tickmode='linear', tick0=2005, dtick=2),
+        yaxis=dict(title='Pontszám', autorange=True,
+                   gridcolor='#21262d', zerolinecolor='#21262d', tickfont=dict(color='#8b949e')),
+        legend=dict(bgcolor='#0d1117', bordercolor='#30363d', borderwidth=1,
+                    font=dict(size=10), itemsizing='constant',
+                    orientation='v', x=1.01, y=1),
+        margin=dict(t=20, b=50, l=60, r=20),
+        hoverlabel=dict(bgcolor='#21262d', bordercolor='#30363d', font=dict(color='#e6edf3')),
+    )
+    f_hist = _fig_h.to_html(full_html=False, include_plotlyjs=False, div_id='hist-fig', config=cfg)
+
+    # JS adatok az összes mutatóhoz
+    _js_scores = {}
+    for _metric in HIST_SCORE_COLS:
+        _arrays = []
+        for _iso in _all_isos:
+            _vals = []
+            for yr in hist_years:
+                if yr in hist_sheets[_metric].columns and _iso in hist_sheets[_metric].index:
+                    _v = hist_sheets[_metric].loc[_iso, yr]
+                    _vals.append(float(round(_v, 3)) if pd.notna(_v) else None)
+                else:
+                    _vals.append(None)
+            _arrays.append(_vals)
+        _js_scores[_metric] = _arrays
+
+    hist_js_data = (
+        "var HIST_HAS_DATA = true;\n"
+        "var HIST_YEARS = " + _json.dumps(hist_years) + ";\n"
+        "var HIST_COUNTRIES = " + _json.dumps(_all_isos) + ";\n"
+        "var HIST_SCORES = " + _json.dumps(_js_scores) + ";\n"
+        "var HIST_GROUPS = " + _json.dumps(_grp_def) + ";\n"
+    )
+
+    _grp_btn_html = "".join(
+        f'<button class="hgb{" hgb-act" if i == 0 else ""}" data-g="{g}" onclick="hSetGroup(this)">{g}</button>'
+        for i, g in enumerate(_grp_def)
+    )
+    _met_opts = "\n".join(
+        f'<option value="{k}">{v}</option>' for k, v in HIST_METRIC_LABELS.items()
+    )
+    hist_ctrl_html = (
+        '<div class="hist-ctrl">'
+        '  <div class="hc-row">'
+        '    <span class="hc-lbl">Mutató:</span>'
+        f'   <select id="hist-met" class="hc-sel" onchange="hSetMetric(this.value)">{_met_opts}</select>'
+        '  </div>'
+        '  <div class="hc-row">'
+        '    <span class="hc-lbl">Csoport:</span>'
+        f'   <div class="hgb-wrap">{_grp_btn_html}</div>'
+        '  </div>'
+        '</div>'
+    )
+
 select_options = "\n".join(
     f'      <option value="{i}">{lbl}</option>'
     for i, (_, lbl) in enumerate(metric_list)
@@ -393,6 +525,7 @@ js_data_block = (
     "var METRIC_LABELS = " + metric_labels_json + ";\n"
     "var ALL_Z = " + all_z_json + ";\n"
     "var N_METRICS = " + str(n) + ";\n"
+    + hist_js_data
 )
 
 html = f"""<!DOCTYPE html>
@@ -473,6 +606,29 @@ html = f"""<!DOCTYPE html>
       .formula-box {{ font-size: 13px; padding: 10px; }}
     }}
 
+    /* ── Historikus chart vezérlők ── */
+    .hist-ctrl {{ display:flex; flex-wrap:wrap; gap:10px 20px; margin-bottom:12px; align-items:center; }}
+    .hc-row {{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; }}
+    .hc-lbl {{ color:#8b949e; font-size:11px; font-weight:600; text-transform:uppercase;
+               letter-spacing:0.8px; white-space:nowrap; }}
+    .hc-sel {{
+      background:#21262d; color:#e6edf3; border:1px solid #58a6ff;
+      border-radius:6px; padding:6px 12px; font-size:13px; cursor:pointer; outline:none;
+    }}
+    .hc-sel:hover {{ border-color:#79c0ff; }}
+    .hgb-wrap {{ display:flex; flex-wrap:wrap; gap:6px; }}
+    .hgb {{
+      background:#21262d; color:#8b949e; border:1px solid #30363d;
+      border-radius:6px; padding:5px 11px; font-size:11px; cursor:pointer;
+      transition:all 0.15s;
+    }}
+    .hgb:hover {{ border-color:#58a6ff; color:#e6edf3; }}
+    .hgb-act {{ background:rgba(88,166,255,0.15); border-color:#58a6ff; color:#58a6ff; font-weight:600; }}
+    .hist-no-data {{
+      text-align:center; padding:40px 20px; color:#6e7681; font-size:13px; line-height:1.8;
+    }}
+    .hist-no-data code {{ background:#21262d; padding:2px 8px; border-radius:4px; color:#79c0ff; }}
+
     /* ── Teljes Rangsor Táblázat ── */
     .table-controls {{
       display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 10px;
@@ -504,8 +660,9 @@ html = f"""<!DOCTYPE html>
     .ranking-table thead th.sort-asc::after  {{ content: ' ↑'; color: #58a6ff; }}
     .ranking-table thead th.sort-desc::after {{ content: ' ↓'; color: #58a6ff; }}
     .ranking-table thead th:first-child {{ text-align: center; }}
-    .ranking-table tbody tr {{ border-bottom: 1px solid #21262d; transition: background 0.1s; }}
+    .ranking-table tbody tr {{ border-bottom: 1px solid #21262d; transition: background 0.1s; cursor: pointer; }}
     .ranking-table tbody tr:hover {{ background: #21262d; }}
+    .ranking-table tbody tr.on-chart {{ background: rgba(88,166,255,0.08); border-left: 3px solid #58a6ff; }}
     .ranking-table td {{ padding: 7px 10px; vertical-align: middle; }}
     .tc-rank {{ color: #6e7681; font-size: 12px; text-align: center; width: 36px; }}
     .tc-country {{ min-width: 160px; color: #e6edf3; }}
@@ -600,7 +757,7 @@ html = f"""<!DOCTYPE html>
 
 <header>
   <h1>Geopolitikai Erő Dashboard</h1>
-  <p>{n_countries} ország &nbsp;·&nbsp; World Bank (WDI) adatok &nbsp;·&nbsp; OSCI Geopolitikai Index</p>
+  <p>{n_countries} ország &nbsp;·&nbsp; World Bank WDI + WGI &nbsp;·&nbsp; OSCI Geopolitikai Index</p>
 </header>
 
 <div class="selector-bar">
@@ -633,31 +790,15 @@ html = f"""<!DOCTYPE html>
   </div>
 </div>
 
-<!-- Historikus Trend szekció -->
-<div class="card hist-cta" style="margin-top: 16px;">
-  <div style="display:flex; align-items:center; gap:20px; flex-wrap:wrap;">
-    <div style="flex:1; min-width:240px;">
-      <div class="card-title">Birodalmi Ciklusok – Historikus Trendek (2000–2024)</div>
-      <p style="color:#c9d1d9; font-size:13px; line-height:1.6; margin:8px 0 12px;">
-        Hogyan változott az egyes országok geopolitikai ereje az elmúlt 25 évben?
-        Interaktív vonaldiagram 102 országgal, kattintható ország-kiválasztóval és
-        előre beállított csoportokkal (G7, BRICS, Kelet-Ázsia stb.).
-      </p>
-      <div style="display:flex; gap:16px; flex-wrap:wrap; margin-bottom:14px;">
-        <span style="color:#8b949e; font-size:11px;">✦ 102 ország</span>
-        <span style="color:#8b949e; font-size:11px;">✦ 2000–2024 · World Bank</span>
-        <span style="color:#8b949e; font-size:11px;">✦ 7 mutató váltható</span>
-        <span style="color:#8b949e; font-size:11px;">✦ G7 / BRICS / NATO és más csoportok</span>
-      </div>
-      <a href="historical_dashboard.html"
-         style="display:inline-block; background:linear-gradient(90deg,#f28e2b,#58a6ff);
-                color:#0d1117; font-weight:700; padding:10px 24px; border-radius:8px;
-                font-size:13px; text-decoration:none; letter-spacing:0.3px;">
-        📈 Megnyitás: Historikus Trendek →
-      </a>
-    </div>
-    <div style="color:#30363d; font-size:80px; line-height:1; flex-shrink:0;">📊</div>
-  </div>
+<!-- Historikus Trendek beágyazva -->
+<div class="card" style="margin-top:16px;">
+  <div class="card-title">Birodalmi Ciklusok – Historikus Trendek ({HIST_START}–{HIST_END})</div>
+  {hist_ctrl_html if hist_has_data else ""}
+  {f_hist if hist_has_data else
+   '<div class="hist-no-data">A historikus adatok hiányoznak.<br>'
+   'Futtasd egyszer: <code>python historical_geo_list.py</code><br>'
+   'Az első futás ~20–30 percet vesz igénybe (utána cache-ből tölt).<br>'
+   'Majd futtasd: <code>python dashboard.py</code></div>'}
 </div>
 
 <!-- Teljes Rangsor Táblázat -->
@@ -665,7 +806,7 @@ html = f"""<!DOCTYPE html>
   <div class="card-title">Teljes Rangsor – Mind a {n_countries} Ország</div>
   <div class="table-controls">
     <input type="text" id="table-search" class="table-search" placeholder="Keresés ország neve vagy ISO kód alapján...">
-    <span style="color:#6e7681;font-size:11px;">{n_countries} ország &nbsp;·&nbsp; kattints az oszlopfejlécre a rendezéshez</span>
+    <span style="color:#6e7681;font-size:11px;">{n_countries} ország &nbsp;·&nbsp; fejlécre kattintva rendezhető &nbsp;·&nbsp; <span style="color:#58a6ff;">sorra kattintva felveszi/eltávolítja az országot a historikus chartról</span></span>
   </div>
   <div class="table-wrap">
     <table class="ranking-table" id="ranking-table">
@@ -712,13 +853,13 @@ html = f"""<!DOCTYPE html>
         <p>A végső pontszámot két nagy tömbből számítjuk, az arány mindennél fontosabb:</p>
         <div class="score-formula">
           <div class="formula-item osci">
-            <span class="formula-pct">65%</span>
+            <span class="formula-pct">60%</span>
             <span class="formula-name">OSCI – Belső Vitalitás</span>
             <span class="formula-desc">A társadalom "lelke" és immunrendszere. Megmutatja, hogy felszálló, érett vagy hanyatló fázisban van-e a birodalom.</span>
           </div>
           <div class="formula-plus">+</div>
           <div class="formula-item hard">
-            <span class="formula-pct">35%</span>
+            <span class="formula-pct">40%</span>
             <span class="formula-name">Hard Power – Nyers Erő</span>
             <span class="formula-desc">A fizikai izomzat: GDP méret, katonai elrettentés, földrajzi adottságok. Belső életerő nélkül önmagában mit sem ér.</span>
           </div>
@@ -730,12 +871,12 @@ html = f"""<!DOCTYPE html>
           <div class="pillar">
             <span class="pillar-icon">⚡</span>
             <strong>Energia &amp; Innováció</strong>
-            <p>Szabadalmak, K+F kiadás, ifjúsági aktivitás – a társadalom "agyát" méri. Találja meg a "Spártai Tech-államokat" (pl. Izrael, Dél-Korea).</p>
+            <p>Csúcstechnológiai export (40%), K+F kiadás (30%), szabadalmak per fő (30%) – a társadalom "agyát" méri. Megtalálja a "Spártai Tech-államokat" (pl. Izrael, Dél-Korea).</p>
           </div>
           <div class="pillar">
             <span class="pillar-icon">🔓</span>
-            <strong>Nyitottság (Társadalmi Lift)</strong>
-            <p>Vállalkozásindítás nehézsége, a Top 10% vagyonkisajátítása, diplomások elhelyezkedési esélye.</p>
+            <strong>Nyitottság (Intézményi Egészség)</strong>
+            <p>Szabályozási Minőség (40%) · Humán Tőke Index – egészség + oktatás (30%) · Elit vagyonkoncentráció inverze – felső 10% büntetése (30%). Angolszász vállalkozásindítási bias nélkül.</p>
           </div>
           <div class="pillar">
             <span class="pillar-icon">🤝</span>
@@ -769,7 +910,7 @@ html = f"""<!DOCTYPE html>
   </div>
 </div>
 
-<footer>Adatforrás: World Bank WDI &nbsp;·&nbsp; Generálva: geo102.py + dashboard.py</footer>
+<footer>Adatforrás: World Bank WDI + WGI &nbsp;·&nbsp; Generálva: geo_list.py + dashboard.py</footer>
 
 <script>
 __JS_DATA__
@@ -821,8 +962,8 @@ __JS_DATA__
 }})();
 
 // Mobilon átméretezi a grafikonokat
-var DESKTOP_HEIGHTS = {{ 'map-fig': 520, 'bar-fig': 520, 'radar-fig': 460, 'scatter-fig': 490 }};
-var MOBILE_HEIGHTS  = {{ 'map-fig': 320, 'bar-fig': 430, 'radar-fig': 370, 'scatter-fig': 370 }};
+var DESKTOP_HEIGHTS = {{ 'map-fig': 520, 'bar-fig': 520, 'radar-fig': 460, 'scatter-fig': 490, 'hist-fig': 480 }};
+var MOBILE_HEIGHTS  = {{ 'map-fig': 320, 'bar-fig': 430, 'radar-fig': 370, 'scatter-fig': 370, 'hist-fig': 380 }};
 
 function applyResponsiveLayout() {{
   var isMobile = window.innerWidth < 768;
@@ -876,6 +1017,62 @@ window.addEventListener('resize', function() {{
   clearTimeout(window._resizeTimer);
   window._resizeTimer = setTimeout(applyResponsiveLayout, 150);
 }});
+
+// ── Historikus chart interakció ───────────────────────────────────────────────
+if (HIST_HAS_DATA) {{
+  // Aktuálisan látható ISO kódok (szinkronban tartjuk a táblával)
+  var _histVisible = new Set(HIST_GROUPS[Object.keys(HIST_GROUPS)[0]] || []);
+
+  function _syncTableHighlight() {{
+    document.querySelectorAll('#ranking-table tbody tr[data-iso]').forEach(function(row) {{
+      var iso = row.getAttribute('data-iso');
+      if (_histVisible.has(iso)) {{
+        row.classList.add('on-chart');
+      }} else {{
+        row.classList.remove('on-chart');
+      }}
+    }});
+  }}
+
+  // Sorra kattintás: toggle az adott ország a charton
+  window.hToggleRow = function(row) {{
+    var iso = row.getAttribute('data-iso');
+    var idx = HIST_COUNTRIES.indexOf(iso);
+    if (idx === -1) return;  // nincs historikus adat ehhez az országhoz
+    if (_histVisible.has(iso)) {{
+      _histVisible.delete(iso);
+    }} else {{
+      _histVisible.add(iso);
+    }}
+    var vis = HIST_COUNTRIES.map(function(c) {{ return _histVisible.has(c); }});
+    Plotly.restyle('hist-fig', {{visible: vis}});
+    // Csoport gombok deaktiválása (egyedi kijelölés)
+    document.querySelectorAll('.hgb').forEach(function(b) {{ b.classList.remove('hgb-act'); }});
+    _syncTableHighlight();
+    // A tábla scrolljának megőrzése – ne ugorjon fel
+    return false;
+  }};
+
+  window.hSetMetric = function(metric) {{
+    Plotly.restyle('hist-fig', {{y: HIST_SCORES[metric]}});
+    // Y-tengely auto-skálázás az új metrika értékkészletéhez
+    Plotly.relayout('hist-fig', {{'yaxis.autorange': true}});
+  }};
+
+  window.hSetGroup = function(btn) {{
+    var groupName = btn.getAttribute('data-g');
+    var isos = HIST_GROUPS[groupName] || [];
+    _histVisible = new Set(isos);
+    var vis = HIST_COUNTRIES.map(function(c) {{ return _histVisible.has(c); }});
+    Plotly.restyle('hist-fig', {{visible: vis}});
+    document.querySelectorAll('.hgb').forEach(function(b) {{ b.classList.remove('hgb-act'); }});
+    btn.classList.add('hgb-act');
+    _syncTableHighlight();
+  }};
+
+  // Kezdeti állapot: tábla highlight szinkronizálása az alapértelmezett csoporttal
+  window.addEventListener('load', function() {{ setTimeout(_syncTableHighlight, 500); }});
+}}
 
 document.getElementById('metric-sel').addEventListener('change', function() {{
   var idx = parseInt(this.value, 10);

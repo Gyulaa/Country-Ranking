@@ -4,8 +4,20 @@ import numpy as np
 import matplotlib.pyplot as plt
 import time
 
-# Csak a Top 15 legfontosabb hatalmat vizsgáljuk az átlátható grafikon miatt
-top_countries = ['IND', 'USA', 'RUS', 'DEU', 'GBR', 'ISR', 'CHN', 'FRA', 'KAZ', 'NLD', 'JPN', 'CAN', 'SWE', 'POL', 'KOR']
+# --- 1. A TELJES 102 ORSZÁGOS LISTA ---
+global_powers = [
+    'USA', 'CAN', 'GBR', 'FRA', 'DEU', 'ITA', 'ESP', 'NLD', 'BEL', 'CHE', 'SWE', 'DNK', 'NOR', 'FIN', 'IRL', 'PRT', 'AUT', 'ISL',
+    'RUS', 'UKR', 'BLR', 'POL', 'ROU', 'CZE', 'HUN', 'SVK', 'LTU', 'LVA', 'EST',
+    'GRC', 'SRB', 'BGR', 'HRV', 'SVN', 'BIH', 'ALB', 'MKD', 'MNE',
+    'CHN', 'JPN', 'IND', 'KOR', 'AUS', 'NZL', 'IDN', 'VNM', 'PHL', 'MYS', 'SGP', 'THA', 'PAK', 'BGD', 'LKA', 'MNG', 'NPL', 'KHM', 'MMR',
+    'KAZ', 'UZB', 'AZE', 'GEO', 'ARM',
+    'ISR', 'SAU', 'TUR', 'ARE', 'IRN', 'EGY', 'MAR', 'DZA', 'QAT', 'KWT', 'OMN', 'JOR', 'IRQ', 'TUN',
+    'BRA', 'MEX', 'ARG', 'COL', 'CHL', 'PER', 'VEN', 'ECU', 'DOM', 'GTM', 'URY', 'CRI', 'PAN', 'BOL', 'PRY',
+    'NGA', 'ZAF', 'KEN', 'ETH', 'GHA', 'AGO', 'CIV', 'RWA', 'TZA', 'CMR', 'UGA'
+]
+
+# Csak ezeket rajzoljuk ki
+countries_to_plot = ['IND', 'USA', 'RUS', 'DEU', 'GBR', 'ISR', 'CHN', 'FRA', 'KAZ', 'NLD', 'JPN', 'CAN', 'SWE', 'POL', 'KOR']
 
 indicators = {
     'GB.XPD.RSDV.GD.ZS': 'Energy_RnD',           
@@ -25,43 +37,58 @@ indicators = {
     'TM.VAL.FUEL.ZS.UN': 'Hard_EnergyVulnerability_INV'
 }
 
-years = range(2010, 2023)
+# 1990-től kérjük le, hogy legyen történelmi "lendület" a hiányzó adatok pótlására!
+fetch_years = range(1990, 2025)
+plot_years = range(2000, 2025)
 data_dict = {}
 
-print("Évtizedes történelmi adatok lekérése a Világbanktól (Hibatűrő mód, ez eltarthat pár percig)...")
+print("Évtizedes történelmi adatok letöltése és tisztítása (ez beletelhet 2-3 percbe)...")
+chunk_size = 15
+country_chunks = [global_powers[i:i + chunk_size] for i in range(0, len(global_powers), chunk_size)]
+
 for ind_code, col_name in indicators.items():
     print(f"Lekérdezés: {col_name}...", end=" ", flush=True)
-    success = False
-    
-    # ÚJRAPRÓBÁLKOZÓ LOGIKA (3-szor fut neki, ha a JSON elromlik)
-    for attempt in range(3):
-        try:
-            temp = wb.data.DataFrame(ind_code, top_countries, time=years)
-            if temp is not None and not temp.empty:
-                temp = temp.ffill(axis=1).bfill(axis=1)
-                data_dict[col_name] = temp
-            success = True
-            break
-        except Exception:
-            time.sleep(2) # Várunk 2 másodpercet a szerver miatt
-            
-    if success:
-        print("OK")
-    else:
-        print("HIBA (Üres adatokkal pótolva a stabilitásért)")
-        # Biztonsági háló: létrehoz egy üres oszlopot, hogy ne kapjunk KeyError-t
-        data_dict[col_name] = pd.DataFrame(np.nan, index=top_countries, columns=[f'YR{y}' for y in years])
+    try:
+        # Üres DataFrame a teljes időtávra
+        series_data_df = pd.DataFrame(index=global_powers, columns=[f'YR{y}' for y in fetch_years])
         
-    time.sleep(1)
+        for chunk in country_chunks:
+            success = False
+            for attempt in range(3):
+                try:
+                    temp = wb.data.DataFrame(ind_code, chunk, time=fetch_years)
+                    if temp is not None and not temp.empty:
+                        # 1. Biztosítjuk a kronológiai sorrendet!
+                        valid_cols = sorted([c for c in temp.columns if c.startswith('YR')])
+                        temp = temp[valid_cols]
+                        
+                        # 2. A MÁGIA: Előrefelé másoljuk a valós adatokat az időben!
+                        temp = temp.ffill(axis=1).bfill(axis=1)
+                        
+                        # Frissítjük a fő táblát
+                        series_data_df.update(temp)
+                    success = True
+                    break
+                except Exception:
+                    time.sleep(2)
+                    
+            if not success:
+                print(f"[Blokk hiba]", end=" ")
+            time.sleep(1)
+            
+        data_dict[col_name] = series_data_df
+        print("OK")
+    except Exception as e:
+        print(f"HIBA: {e}")
+        data_dict[col_name] = pd.DataFrame(np.nan, index=global_powers, columns=[f'YR{y}' for y in fetch_years])
 
-yearly_scores = pd.DataFrame(index=top_countries)
+yearly_scores_all = pd.DataFrame(index=global_powers)
 
-print("A birodalmi mátrix kiszámítása évről évre...")
-for y in years:
+print("A globális birodalmi mátrix kiszámítása évről évre...")
+for y in plot_years:
     yr_col = f'YR{y}'
-    df_y = pd.DataFrame(index=top_countries)
+    df_y = pd.DataFrame(index=global_powers)
     
-    # BIZTONSÁGI JAVÍTÁS: Kényszerítjük, hogy MINDEN indikátor oszlop létezzen
     for col_name in indicators.values():
         if col_name in data_dict and yr_col in data_dict[col_name].columns:
             df_y[col_name] = data_dict[col_name][yr_col]
@@ -122,34 +149,30 @@ for y in years:
     
     Score_HardPower = (HP_GDP * 0.25 + HP_Military_Asym * 0.25 + HP_Pop * 0.20 + HP_Geo * 0.20 + HP_EnergySecurity * 0.10)
     
-    # 65/35-ös súlyozás
     FINAL_SCORE = (Score_OSCI * 0.65) + (Score_HardPower * 0.35)
-    yearly_scores[y] = FINAL_SCORE
+    yearly_scores_all[y] = FINAL_SCORE
 
-# --- GRAFIKON RAJZOLÁSA (matplotlib) ---
+# --- GRAFIKON RAJZOLÁSA ---
 print("Grafikon generálása...")
-plt.figure(figsize=(14, 8))
+yearly_scores_plot = yearly_scores_all.loc[countries_to_plot]
 
-# Szép színskála
+plt.figure(figsize=(14, 8))
 cmap = plt.get_cmap('tab20')
 
-for i, country in enumerate(top_countries):
-    # Kiemeljük vastagabb vonallal a legnagyobb játékosokat
+for i, country in enumerate(countries_to_plot):
     if country in ['USA', 'CHN', 'IND', 'RUS']:
-        plt.plot(years, yearly_scores.loc[country], marker='o', linewidth=3.5, label=country)
+        plt.plot(plot_years, yearly_scores_plot.loc[country], marker='o', linewidth=3.5, label=country)
     else:
-        plt.plot(years, yearly_scores.loc[country], marker='', linewidth=1.5, alpha=0.5, label=country)
+        plt.plot(plot_years, yearly_scores_plot.loc[country], marker='', linewidth=1.5, alpha=0.5, label=country)
 
-plt.title('Birodalmi Ciklusok: Geopolitikai Erő Trendjei (2010-2022)\n(70% Belső Vitalitás - 30% Nyers Erő)', fontsize=16, fontweight='bold')
+plt.title('Birodalmi Ciklusok: Geopolitikai Erő Trendjei (2000-2024)\n(Valós adatokkal, 102 országos referencia)', fontsize=16, fontweight='bold')
 plt.xlabel('Év', fontsize=12)
 plt.ylabel('Geopolitikai Pontszám (1-10)', fontsize=12)
-plt.xticks(years)
+plt.xticks(list(range(2000, 2025, 2))) 
 
-# Jelmagyarázat formázása
 plt.legend(bbox_to_anchor=(1.02, 1), loc='upper left', fontsize=10)
 plt.grid(True, linestyle='--', alpha=0.4)
 plt.tight_layout()
 
-# Mentés
-plt.savefig('historical_ranking.png', dpi=300)
-print("Kész! Nyisd meg a 'historical_ranking.png' fájlt a mappádban!")
+plt.savefig('historical_ranking_FINAL.png', dpi=300)
+print("Kész! A történelmi adatfolyam javítva. Nyisd meg a 'historical_ranking_FINAL.png' fájlt!")
