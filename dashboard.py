@@ -407,7 +407,21 @@ html = f"""<!DOCTYPE html>
     @media (max-width: 960px) {{
       .map-bar-row, .grid-2 {{ grid-template-columns: 1fr; }}
       .meth-grid {{ grid-template-columns: 1fr; }}
-      .pillars {{ grid-template-columns: 1fr 1fr; }}
+    }}
+    @media (max-width: 768px) {{
+      body {{ padding: 10px 10px; }}
+      header h1 {{ font-size: 20px; }}
+      header p {{ font-size: 11px; }}
+      .selector-bar {{ flex-wrap: wrap; gap: 8px; padding: 8px 12px; }}
+      .zoom-hint {{ display: none; }}
+      select#metric-sel {{ max-width: 100%; width: 100%; }}
+      .card {{ padding: 10px 8px 4px; }}
+      .map-bar-row, .grid-2 {{ gap: 10px; margin-bottom: 10px; }}
+      .pillars {{ grid-template-columns: 1fr; }}
+      .score-formula {{ flex-direction: column; }}
+      .formula-plus {{ align-self: center; }}
+      .meth-block p, .meth-block li {{ font-size: 12px; }}
+      .formula-box {{ font-size: 13px; padding: 10px; }}
     }}
 
     /* ── Módszertan szekció ── */
@@ -602,6 +616,27 @@ html = f"""<!DOCTYPE html>
 
 <script>
 __JS_DATA__
+
+// Mobilon átméretezi a grafikonokat
+var DESKTOP_HEIGHTS = {{ 'map-fig': 520, 'bar-fig': 520, 'radar-fig': 460, 'scatter-fig': 490 }};
+var MOBILE_HEIGHTS  = {{ 'map-fig': 320, 'bar-fig': 430, 'radar-fig': 370, 'scatter-fig': 370 }};
+
+function applyResponsiveLayout() {{
+  var isMobile = window.innerWidth < 768;
+  var heights = isMobile ? MOBILE_HEIGHTS : DESKTOP_HEIGHTS;
+  Object.keys(heights).forEach(function(id) {{
+    var el = document.getElementById(id);
+    if (el && el._fullLayout !== undefined) {{
+      Plotly.relayout(id, {{ height: heights[id] }});
+    }}
+  }});
+}}
+
+window.addEventListener('load', function() {{ setTimeout(applyResponsiveLayout, 300); }});
+window.addEventListener('resize', function() {{
+  clearTimeout(window._resizeTimer);
+  window._resizeTimer = setTimeout(applyResponsiveLayout, 150);
+}});
 
 document.getElementById('metric-sel').addEventListener('change', function() {{
   var idx = parseInt(this.value, 10);
