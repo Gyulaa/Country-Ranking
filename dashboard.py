@@ -27,6 +27,15 @@ COUNTRY_NAMES = {
     'DOM': 'Dominican Rep.', 'GTM': 'Guatemala', 'NGA': 'Nigeria',
     'ZAF': 'South Africa', 'KEN': 'Kenya', 'ETH': 'Ethiopia',
     'GHA': 'Ghana', 'AGO': 'Angola', 'CIV': 'Ivory Coast',
+    'ISL': 'Iceland', 'BLR': 'Belarus', 'LVA': 'Latvia', 'EST': 'Estonia',
+    'SVN': 'Slovenia', 'BIH': 'Bosnia & Herz.', 'ALB': 'Albania',
+    'MKD': 'North Macedonia', 'MNE': 'Montenegro',
+    'MNG': 'Mongolia', 'NPL': 'Nepal', 'KHM': 'Cambodia', 'MMR': 'Myanmar',
+    'AZE': 'Azerbaijan', 'GEO': 'Georgia', 'ARM': 'Armenia',
+    'TUN': 'Tunisia',
+    'URY': 'Uruguay', 'CRI': 'Costa Rica', 'PAN': 'Panama',
+    'BOL': 'Bolivia', 'PRY': 'Paraguay',
+    'RWA': 'Rwanda', 'TZA': 'Tanzania', 'CMR': 'Cameroon', 'UGA': 'Uganda',
 }
 
 REGIONS = {}
@@ -41,8 +50,16 @@ for c in ['CHN','JPN','IND','KOR','AUS','NZL','IDN','VNM','PHL','MYS','SGP','THA
     REGIONS[c] = 'Asia'
 for c in ['ISR','SAU','TUR','ARE','IRN','EGY','MAR','DZA','QAT','KWT','OMN','JOR','IRQ']:
     REGIONS[c] = 'Middle East'
-for c in ['NGA','ZAF','KEN','ETH','GHA','AGO','CIV']:
+for c in ['NGA','ZAF','KEN','ETH','GHA','AGO','CIV','RWA','TZA','CMR','UGA']:
     REGIONS[c] = 'Africa'
+for c in ['ISL','BLR','LVA','EST','SVN','BIH','ALB','MKD','MNE']:
+    REGIONS[c] = 'Europe'
+for c in ['MNG','NPL','KHM','MMR','AZE','GEO','ARM']:
+    REGIONS[c] = 'Asia'
+for c in ['TUN']:
+    REGIONS[c] = 'Middle East'
+for c in ['URY','CRI','PAN','BOL','PRY']:
+    REGIONS[c] = 'Americas'
 
 REGION_COLORS = {
     'Europe': '#4e79a7', 'Asia': '#f28e2b', 'Americas': '#59a14f',
@@ -616,6 +633,33 @@ html = f"""<!DOCTYPE html>
   </div>
 </div>
 
+<!-- Historikus Trend szekció -->
+<div class="card hist-cta" style="margin-top: 16px;">
+  <div style="display:flex; align-items:center; gap:20px; flex-wrap:wrap;">
+    <div style="flex:1; min-width:240px;">
+      <div class="card-title">Birodalmi Ciklusok – Historikus Trendek (2000–2024)</div>
+      <p style="color:#c9d1d9; font-size:13px; line-height:1.6; margin:8px 0 12px;">
+        Hogyan változott az egyes országok geopolitikai ereje az elmúlt 25 évben?
+        Interaktív vonaldiagram 102 országgal, kattintható ország-kiválasztóval és
+        előre beállított csoportokkal (G7, BRICS, Kelet-Ázsia stb.).
+      </p>
+      <div style="display:flex; gap:16px; flex-wrap:wrap; margin-bottom:14px;">
+        <span style="color:#8b949e; font-size:11px;">✦ 102 ország</span>
+        <span style="color:#8b949e; font-size:11px;">✦ 2000–2024 · World Bank</span>
+        <span style="color:#8b949e; font-size:11px;">✦ 7 mutató váltható</span>
+        <span style="color:#8b949e; font-size:11px;">✦ G7 / BRICS / NATO és más csoportok</span>
+      </div>
+      <a href="historical_dashboard.html"
+         style="display:inline-block; background:linear-gradient(90deg,#f28e2b,#58a6ff);
+                color:#0d1117; font-weight:700; padding:10px 24px; border-radius:8px;
+                font-size:13px; text-decoration:none; letter-spacing:0.3px;">
+        📈 Megnyitás: Historikus Trendek →
+      </a>
+    </div>
+    <div style="color:#30363d; font-size:80px; line-height:1; flex-shrink:0;">📊</div>
+  </div>
+</div>
+
 <!-- Teljes Rangsor Táblázat -->
 <div class="card" style="margin-top: 16px;">
   <div class="card-title">Teljes Rangsor – Mind a {n_countries} Ország</div>
@@ -725,10 +769,7 @@ html = f"""<!DOCTYPE html>
   </div>
 </div>
 
-<footer>
-  Adatforrás: World Bank WDI &nbsp;·&nbsp; Generálva: geo76.py + dashboard.py
-  &nbsp;·&nbsp; <a href="historical_dashboard.html" style="color:#58a6ff;">📈 Historikus trendek (2010–2023) →</a>
-</footer>
+<footer>Adatforrás: World Bank WDI &nbsp;·&nbsp; Generálva: geo102.py + dashboard.py</footer>
 
 <script>
 __JS_DATA__

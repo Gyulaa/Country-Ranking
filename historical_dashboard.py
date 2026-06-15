@@ -10,15 +10,17 @@ import wbgapi as wb
 
 CACHE_FILE  = "historical_scores.xlsx"
 OUTPUT_HTML = "historical_dashboard.html"
-YEARS       = list(range(2010, 2024))
+YEARS       = list(range(2000, 2025))
 
 global_powers = [
-    'USA', 'CAN', 'GBR', 'FRA', 'DEU', 'ITA', 'ESP', 'NLD', 'BEL', 'CHE', 'SWE', 'DNK', 'NOR', 'FIN', 'IRL', 'PRT', 'AUT',
-    'RUS', 'UKR', 'POL', 'ROU', 'CZE', 'HUN', 'GRC', 'SRB', 'BGR', 'HRV', 'SVK', 'LTU',
-    'CHN', 'JPN', 'IND', 'KOR', 'AUS', 'NZL', 'IDN', 'VNM', 'PHL', 'MYS', 'SGP', 'THA', 'PAK', 'BGD', 'LKA', 'KAZ', 'UZB',
-    'ISR', 'SAU', 'TUR', 'ARE', 'IRN', 'EGY', 'MAR', 'DZA', 'QAT', 'KWT', 'OMN', 'JOR', 'IRQ',
-    'BRA', 'MEX', 'ARG', 'COL', 'CHL', 'PER', 'VEN', 'ECU', 'DOM', 'GTM',
-    'NGA', 'ZAF', 'KEN', 'ETH', 'GHA', 'AGO', 'CIV',
+    'USA', 'CAN', 'GBR', 'FRA', 'DEU', 'ITA', 'ESP', 'NLD', 'BEL', 'CHE', 'SWE', 'DNK', 'NOR', 'FIN', 'IRL', 'PRT', 'AUT', 'ISL',
+    'RUS', 'UKR', 'BLR', 'POL', 'ROU', 'CZE', 'HUN', 'SVK', 'LTU', 'LVA', 'EST',
+    'GRC', 'SRB', 'BGR', 'HRV', 'SVN', 'BIH', 'ALB', 'MKD', 'MNE',
+    'CHN', 'JPN', 'IND', 'KOR', 'AUS', 'NZL', 'IDN', 'VNM', 'PHL', 'MYS', 'SGP', 'THA', 'PAK', 'BGD', 'LKA', 'MNG', 'NPL', 'KHM', 'MMR',
+    'KAZ', 'UZB', 'AZE', 'GEO', 'ARM',
+    'ISR', 'SAU', 'TUR', 'ARE', 'IRN', 'EGY', 'MAR', 'DZA', 'QAT', 'KWT', 'OMN', 'JOR', 'IRQ', 'TUN',
+    'BRA', 'MEX', 'ARG', 'COL', 'CHL', 'PER', 'VEN', 'ECU', 'DOM', 'GTM', 'URY', 'CRI', 'PAN', 'BOL', 'PRY',
+    'NGA', 'ZAF', 'KEN', 'ETH', 'GHA', 'AGO', 'CIV', 'RWA', 'TZA', 'CMR', 'UGA',
 ]
 
 COUNTRY_NAMES = {
@@ -44,6 +46,15 @@ COUNTRY_NAMES = {
     'DOM': 'Dominican Rep.', 'GTM': 'Guatemala', 'NGA': 'Nigeria',
     'ZAF': 'South Africa', 'KEN': 'Kenya', 'ETH': 'Ethiopia',
     'GHA': 'Ghana', 'AGO': 'Angola', 'CIV': 'Ivory Coast',
+    'ISL': 'Iceland', 'BLR': 'Belarus', 'LVA': 'Latvia', 'EST': 'Estonia',
+    'SVN': 'Slovenia', 'BIH': 'Bosnia & Herz.', 'ALB': 'Albania',
+    'MKD': 'North Macedonia', 'MNE': 'Montenegro',
+    'MNG': 'Mongolia', 'NPL': 'Nepal', 'KHM': 'Cambodia', 'MMR': 'Myanmar',
+    'AZE': 'Azerbaijan', 'GEO': 'Georgia', 'ARM': 'Armenia',
+    'TUN': 'Tunisia',
+    'URY': 'Uruguay', 'CRI': 'Costa Rica', 'PAN': 'Panama',
+    'BOL': 'Bolivia', 'PRY': 'Paraguay',
+    'RWA': 'Rwanda', 'TZA': 'Tanzania', 'CMR': 'Cameroon', 'UGA': 'Uganda',
 }
 
 REGIONS = {}
@@ -58,8 +69,16 @@ for c in ['CHN','JPN','IND','KOR','AUS','NZL','IDN','VNM','PHL','MYS','SGP','THA
     REGIONS[c] = 'Asia'
 for c in ['ISR','SAU','TUR','ARE','IRN','EGY','MAR','DZA','QAT','KWT','OMN','JOR','IRQ']:
     REGIONS[c] = 'Middle East'
-for c in ['NGA','ZAF','KEN','ETH','GHA','AGO','CIV']:
+for c in ['NGA','ZAF','KEN','ETH','GHA','AGO','CIV','RWA','TZA','CMR','UGA']:
     REGIONS[c] = 'Africa'
+for c in ['ISL','BLR','LVA','EST','SVN','BIH','ALB','MKD','MNE']:
+    REGIONS[c] = 'Europe'
+for c in ['MNG','NPL','KHM','MMR','AZE','GEO','ARM']:
+    REGIONS[c] = 'Asia'
+for c in ['TUN']:
+    REGIONS[c] = 'Middle East'
+for c in ['URY','CRI','PAN','BOL','PRY']:
+    REGIONS[c] = 'Americas'
 
 REGION_BASE = {
     'Europe':      (78,  121, 167),
@@ -228,12 +247,15 @@ else:
 PRESET_GROUPS = {
     'Top 10 (jelenlegi)': _top10,
     'G7':                 ['USA','CAN','GBR','FRA','DEU','ITA','JPN'],
-    'BRICS':              ['BRA','RUS','IND','CHN','ZAF'],
-    'NATO Nagyok':        ['USA','GBR','FRA','DEU','TUR','POL'],
-    'Kelet-Ázsia':        ['CHN','JPN','KOR','IND','SGP','VNM'],
-    'Öböl-menti':         ['SAU','ARE','QAT','KWT','OMN','IRN'],
-    'Kelet-Európa':       ['POL','HUN','CZE','ROU','UKR','SRB','BGR'],
-    'Afrika':             ['NGA','ZAF','KEN','ETH','GHA','AGO','CIV'],
+    'BRICS+':             ['BRA','RUS','IND','CHN','ZAF','ARE','SAU','EGY','IRN','ETH'],
+    'NATO Nagyok':        ['USA','GBR','FRA','DEU','TUR','POL','NLD','ESP','ITA'],
+    'Kelet-Ázsia':        ['CHN','JPN','KOR','IND','SGP','VNM','THA','MYS','IDN'],
+    'Öböl-menti':         ['SAU','ARE','QAT','KWT','OMN','IRN','IRQ'],
+    'Kelet-Európa':       ['POL','HUN','CZE','ROU','SVK','LTU','LVA','EST','UKR','BLR'],
+    'Balkán':             ['GRC','SRB','BGR','HRV','SVN','BIH','ALB','MKD','MNE'],
+    'Kaukázus+Közép-Ázsia': ['KAZ','UZB','AZE','GEO','ARM','MNG'],
+    'Latin-Amerika':      ['BRA','MEX','ARG','COL','CHL','PER','URY','CRI'],
+    'Afrika':             ['NGA','ZAF','KEN','ETH','GHA','AGO','RWA','TZA','CMR','UGA'],
 }
 
 # ── JS DATA ───────────────────────────────────────────────────────────────────
@@ -382,7 +404,7 @@ html = f"""<!DOCTYPE html>
 <body>
 
 <header>
-  <h1>Birodalmi Ciklusok: Geopolitikai Trendek 2010–2023</h1>
+  <h1>Birodalmi Ciklusok: Geopolitikai Trendek 2000–2024</h1>
   <p>76 ország &nbsp;·&nbsp; World Bank (WDI) adatok &nbsp;·&nbsp; <a href="index.html">← Vissza a Dashboardhoz</a></p>
 </header>
 
@@ -411,7 +433,7 @@ html = f"""<!DOCTYPE html>
 
   <div class="chart-card">
     <div style="display:flex;align-items:center;margin-bottom:6px;">
-      <div class="card-title" id="chart-title">Végső Geopolitikai Pontszám – Trendje (2010–2023)</div>
+      <div class="card-title" id="chart-title">Végső Geopolitikai Pontszám – Trendje (2000–2024)</div>
       <span class="selected-count" id="sel-count"></span>
     </div>
     <div id="hist-fig"></div>
@@ -458,7 +480,7 @@ var layout = {{
   }},
   yaxis: {{
     title: {{ text: METRIC_LABELS[0], font: {{ color: '#8b949e', size: 11 }} }},
-    range: [1, 10], gridcolor: '#21262d', zerolinecolor: '#21262d',
+    autorange: true, gridcolor: '#21262d', zerolinecolor: '#21262d',
     tickfont: {{ color: '#8b949e', size: 10 }},
   }},
   legend: {{
@@ -489,8 +511,8 @@ document.getElementById('metric-sel').addEventListener('change', function() {{
   var metric = METRIC_KEYS[idx];
   var newY = COUNTRY_LIST.map(function(iso) {{ return HIST[iso][metric]; }});
   Plotly.restyle('hist-fig', {{ y: newY }});
-  Plotly.relayout('hist-fig', {{ 'yaxis.title.text': METRIC_LABELS[idx] }});
-  document.getElementById('chart-title').textContent = METRIC_LABELS[idx] + ' – Trendje (2010–2023)';
+  Plotly.relayout('hist-fig', {{ 'yaxis.title.text': METRIC_LABELS[idx], 'yaxis.autorange': true }});
+  document.getElementById('chart-title').textContent = METRIC_LABELS[idx] + ' – Trendje (2000–2024)';
 }});
 
 // ── Country checkboxes ────────────────────────────────────────────────────────
