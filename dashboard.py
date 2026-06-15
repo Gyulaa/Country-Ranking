@@ -440,8 +440,11 @@ html = f"""<!DOCTYPE html>
     }}
     .meth-section.open .meth-content {{ display: block; }}
     .meth-grid {{
-      display: grid; grid-template-columns: 1fr 1fr;
+      display: grid; grid-template-columns: 1fr;
       gap: 20px; margin-bottom: 16px;
+    }}
+    @media (min-width: 961px) {{
+      .meth-grid {{ grid-template-columns: 1fr 1fr; }}
     }}
     .meth-block h3 {{
       color: #58a6ff; font-size: 13px; font-weight: 600;
@@ -626,9 +629,45 @@ function applyResponsiveLayout() {{
   var heights = isMobile ? MOBILE_HEIGHTS : DESKTOP_HEIGHTS;
   Object.keys(heights).forEach(function(id) {{
     var el = document.getElementById(id);
-    if (el && el._fullLayout !== undefined) {{
-      Plotly.relayout(id, {{ height: heights[id] }});
+    if (!el || el._fullLayout === undefined) return;
+    var update = {{ height: heights[id] }};
+    if (id === 'radar-fig') {{
+      if (isMobile) {{
+        update['legend.orientation'] = 'h';
+        update['legend.x'] = 0;
+        update['legend.y'] = -0.15;
+        update['legend.font.size'] = 10;
+        update['margin.t'] = 50;
+        update['margin.b'] = 80;
+        update['margin.l'] = 30;
+        update['margin.r'] = 30;
+      }} else {{
+        update['legend.orientation'] = 'v';
+        update['legend.x'] = null;
+        update['legend.y'] = null;
+        update['legend.font.size'] = 11;
+        update['margin.t'] = 80;
+        update['margin.b'] = 20;
+        update['margin.l'] = 60;
+        update['margin.r'] = 60;
+      }}
     }}
+    if (id === 'scatter-fig') {{
+      if (isMobile) {{
+        update['legend.orientation'] = 'h';
+        update['legend.x'] = 0;
+        update['legend.y'] = -0.18;
+        update['legend.font.size'] = 10;
+        update['margin.b'] = 100;
+      }} else {{
+        update['legend.orientation'] = 'v';
+        update['legend.x'] = null;
+        update['legend.y'] = null;
+        update['legend.font.size'] = 11;
+        update['margin.b'] = 50;
+      }}
+    }}
+    Plotly.relayout(id, update);
   }});
 }}
 
