@@ -435,10 +435,20 @@ if hist_has_data:
         'Latin-Amerika':[c for c in ['BRA','MEX','ARG','COL','CHL','PER','VEN','URY','CRI'] if c in _all_isos],
     }
 
+    # 30 vizuálisan jól elkülönülő szín – indexenként rotáló, nem régiónként
+    _HIST_PALETTE = [
+        '#58a6ff','#f85149','#3fb950','#ffa657','#bc8cff',
+        '#79c0ff','#ff7b72','#56d364','#e3b341','#7ee8fa',
+        '#d2a8ff','#85e89d','#ff9bce','#ffab70','#cae8ff',
+        '#f97583','#9ecbff','#b3d4f5','#ffdcd7','#fdaeb7',
+        '#a5d6ff','#ffd8b1','#c8b1e4','#b3f0c0','#ffe4b5',
+        '#ffb3c1','#b5ead7','#c7ceea','#ffc8a2','#bde0fe',
+    ]
+
     _fig_h = go.Figure()
-    for _iso in _all_isos:
+    for _i, _iso in enumerate(_all_isos):
         _nm  = COUNTRY_NAMES.get(_iso, _iso)
-        _col = REGION_COLORS.get(REGIONS.get(_iso, ''), '#888')
+        _col = _HIST_PALETTE[_i % len(_HIST_PALETTE)]
         _ys  = [
             float(round(hist_sheets['FINAL_SCORE_1_10'].loc[_iso, yr], 3))
             if yr in hist_sheets['FINAL_SCORE_1_10'].columns
@@ -642,31 +652,59 @@ html = f"""<!DOCTYPE html>
     .table-search::placeholder {{ color: #6e7681; }}
     .table-search:focus {{ border-color: #79c0ff; }}
     .table-wrap {{
-      overflow-x: auto; overflow-y: auto; max-height: 540px;
+      overflow-x: auto; overflow-y: scroll; max-height: 540px;
       border: 1px solid #30363d; border-radius: 8px;
     }}
     table.ranking-table {{
-      width: 100%; border-collapse: collapse; font-size: 13px; min-width: 680px;
+      width: 100%; border-collapse: collapse; font-size: 13px; min-width: 720px;
+      table-layout: fixed;
     }}
+    .ranking-table colgroup col:nth-child(1)  {{ width: 44px; }}
+    .ranking-table colgroup col:nth-child(2)  {{ width: 190px; }}
+    .ranking-table colgroup col:nth-child(3)  {{ width: 90px; }}
+    .ranking-table colgroup col:nth-child(4)  {{ width: 88px; }}
+    .ranking-table colgroup col:nth-child(5)  {{ width: 72px; }}
+    .ranking-table colgroup col:nth-child(6)  {{ width: 84px; }}
+    .ranking-table colgroup col:nth-child(7)  {{ width: 72px; }}
+    .ranking-table colgroup col:nth-child(8)  {{ width: 80px; }}
+    .ranking-table colgroup col:nth-child(9)  {{ width: 72px; }}
+    .ranking-table colgroup col:nth-child(10) {{ width: 82px; }}
     .ranking-table thead th {{
       background: #1c2128; color: #8b949e; font-size: 10.5px;
       text-transform: uppercase; letter-spacing: 0.6px; font-weight: 600;
-      padding: 9px 10px; text-align: left; white-space: nowrap;
+      padding: 9px 10px; text-align: right; white-space: nowrap;
       cursor: pointer; user-select: none;
       border-bottom: 2px solid #30363d;
+      border-right: 1px solid #30363d;
       position: sticky; top: 0; z-index: 2;
+      box-shadow: 0 2px 0 #30363d;
     }}
+    .ranking-table thead th:last-child {{ border-right: none; }}
+    .ranking-table thead th:nth-child(1) {{ text-align: center; }}
+    .ranking-table thead th:nth-child(2) {{ text-align: left; }}
+    .ranking-table thead th:nth-child(3) {{ text-align: left; }}
     .ranking-table thead th:hover {{ color: #e6edf3; background: #30363d; }}
     .ranking-table thead th.sort-asc::after  {{ content: ' ↑'; color: #58a6ff; }}
     .ranking-table thead th.sort-desc::after {{ content: ' ↓'; color: #58a6ff; }}
-    .ranking-table thead th:first-child {{ text-align: center; }}
-    .ranking-table tbody tr {{ border-bottom: 1px solid #21262d; transition: background 0.1s; cursor: pointer; }}
-    .ranking-table tbody tr:hover {{ background: #21262d; }}
-    .ranking-table tbody tr.on-chart {{ background: rgba(88,166,255,0.08); border-left: 3px solid #58a6ff; }}
-    .ranking-table td {{ padding: 7px 10px; vertical-align: middle; }}
-    .tc-rank {{ color: #6e7681; font-size: 12px; text-align: center; width: 36px; }}
-    .tc-country {{ min-width: 160px; color: #e6edf3; }}
-    .tc-region {{ font-size: 11px; font-weight: 600; white-space: nowrap; }}
+    .ranking-table tbody tr {{
+      border-bottom: 1px solid #21262d;
+      border-left: 3px solid transparent;
+      transition: background 0.1s;
+      cursor: pointer;
+    }}
+    .ranking-table tbody tr:hover {{ background: #1c2128; }}
+    .ranking-table tbody tr.on-chart {{
+      background: rgba(88,166,255,0.07);
+      border-left: 3px solid #58a6ff;
+    }}
+    .ranking-table td {{
+      padding: 7px 10px; vertical-align: middle;
+      border-right: 1px solid #21262d; text-align: right;
+    }}
+    .ranking-table td:last-child {{ border-right: none; }}
+    .tc-rank {{ color: #6e7681; font-size: 12px; text-align: center !important; }}
+    .tc-country {{ text-align: left !important; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #e6edf3; }}
+    .tc-region {{ text-align: left !important; font-size: 11px; font-weight: 600; white-space: nowrap; }}
     .iso-tag {{
       display: inline-block; background: #21262d; border: 1px solid #30363d;
       border-radius: 4px; padding: 1px 5px; font-size: 10px;
@@ -674,9 +712,9 @@ html = f"""<!DOCTYPE html>
     }}
     @media (max-width: 768px) {{
       .table-search {{ max-width: 100%; }}
-      .ranking-table {{ font-size: 12px; }}
-      .ranking-table thead th {{ font-size: 9.5px; padding: 7px 7px; }}
-      .ranking-table td {{ padding: 6px 7px; }}
+      .ranking-table {{ font-size: 12px; min-width: 600px; }}
+      .ranking-table thead th {{ font-size: 9.5px; padding: 7px 6px; }}
+      .ranking-table td {{ padding: 6px 6px; }}
     }}
 
     /* ── Módszertan szekció ── */
@@ -810,6 +848,9 @@ html = f"""<!DOCTYPE html>
   </div>
   <div class="table-wrap">
     <table class="ranking-table" id="ranking-table">
+      <colgroup>
+        <col><col><col><col><col><col><col><col><col><col>
+      </colgroup>
       <thead>
         <tr>
           <th>#</th>
